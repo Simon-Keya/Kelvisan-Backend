@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express, { Application } from 'express';
+import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 
@@ -13,24 +14,36 @@ const swaggerDocument = YAML.load('./docs/swagger.yaml');
 
 const app: Application = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// --- MIDDLEWARES ---
 
-// API routes
+// Enable CORS for frontend (adjust origin as needed)
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
+}));
+
+// Body parsers
+app.use(express.json()); // for application/json
+app.use(express.urlencoded({ extended: true })); // for form submissions
+
+// Serve uploaded images statically
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// --- API ROUTES ---
+
 app.use('/api/products', productRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/auth', authRoutes);
 
-// Swagger docs route
+// Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// Basic health check
+// Health check
 app.get('/', (_req, res) => {
   res.send('Kelvisan API is running...');
 });
 
-// Optional global error handler
+// Global error handler (optional but recommended)
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ message: 'Internal server error' });

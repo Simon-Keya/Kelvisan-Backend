@@ -2,13 +2,14 @@ import bcrypt from 'bcrypt';
 import { Request, Response } from 'express';
 import {
   countFailedAttempts,
+  createAdmin,
   findAdminByEmail,
   logLoginAttempt,
   updateAdminPassword,
 } from '../models/adminModel';
 import { generateToken } from '../utils/jwt';
 
-// POST /api/auth/login
+// ✅ POST /api/auth/login
 export const loginAdmin = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
@@ -46,7 +47,31 @@ export const loginAdmin = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// POST /api/auth/reset-password
+// ✅ POST /api/auth/register
+export const registerAdmin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ message: 'Email and password are required.' });
+      return;
+    }
+
+    const existing = await findAdminByEmail(email);
+    if (existing) {
+      res.status(409).json({ message: 'Admin with that email already exists.' });
+      return;
+    }
+
+    await createAdmin(email, password);
+    res.status(201).json({ message: 'Admin created successfully.' });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// ✅ POST /api/auth/reset-password
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, newPassword } = req.body;
@@ -62,9 +87,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await updateAdminPassword(email, hashedPassword);
-
+    await updateAdminPassword(email, newPassword);
     res.status(200).json({ message: 'Password updated successfully' });
   } catch (error) {
     console.error('Password reset error:', error);

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import {
   Product,
   createProduct,
-  deleteProduct,
+  deleteProductById,
   getAllProducts,
   getProductById,
   updateProduct,
@@ -90,7 +90,7 @@ export const removeProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const deleted = await deleteProduct(id);
+    const deleted = await deleteProductById(id);
     if (!deleted) {
       res.status(404).json({ message: 'Product not found' });
       return;

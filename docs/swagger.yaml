@@ -34,6 +34,31 @@ paths:
         '401':
           description: Invalid credentials
 
+  /auth/register:
+    post:
+      summary: Register a new admin
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: Admin registered successfully
+        '409':
+          description: Admin already exists
+
   /auth/reset-password:
     post:
       summary: Reset admin password

@@ -1,12 +1,14 @@
-import dotenv from 'dotenv';
 import pg from 'pg';
-dotenv.config();
+import { config } from '../utils/config'; // adjust path if needed
 
 const { Pool } = pg;
 
+// Build connection string using env vars
+const connectionString = `postgresql://${config.DB_USERNAME}:${(config.DB_PASSWORD)}@${config.DB_HOST}:${config.DB_PORT}/${config.DB_NAME}`;
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 export const initializeDatabase = async () => {
@@ -19,6 +21,16 @@ export const initializeDatabase = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS login_attempts (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL,
+        success BOOLEAN NOT NULL,
+        attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
