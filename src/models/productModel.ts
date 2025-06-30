@@ -47,7 +47,29 @@ export const updateProduct = async (id: number, product: Partial<Product>): Prom
   return result.rows[0];
 };
 
-export const deleteProduct = async (id: number): Promise<boolean> => {
-  const result = await pool.query('DELETE FROM products WHERE id = $1', [id]);
-  return result.rowCount > 0;
+export const deleteProductById = async (productId: number): Promise<{ success: boolean; message: string }> => {
+  try {
+    const result = await pool.query('DELETE FROM products WHERE id = $1', [productId]);
+
+    // Safely handle possibly null rowCount
+    if ((result.rowCount ?? 0) > 0) {
+      return { success: true, message: '✅ Product deleted successfully' };
+    } else {
+      return { success: false, message: '⚠️ No product found with the given ID' };
+    }
+  } catch (error) {
+    console.error('❌ Error deleting product:', error);
+    return { success: false, message: '❌ Internal server error' };
+  }
 };
+
+
+
+
+
+
+
+
+
+
+
