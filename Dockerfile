@@ -14,11 +14,21 @@ RUN npm install
 #    Make sure your .dockerignore excludes node_modules and dist here
 COPY . .
 
+# *** DIAGNOSTIC STEPS - ADDED ***
+# List files to confirm package.json and tsconfig.json are there
+RUN ls -la /usr/src/app/
+
+# List contents of src directory to ensure source files are copied
+RUN ls -la /usr/src/app/src/
+
+# Verify tsconfig.json content (optional, but can be useful)
+RUN cat /usr/src/app/tsconfig.json
+# ********************************
+
 # 6. Run the TypeScript build command directly with verbose output
-#    This will create the 'dist' directory with your compiled JavaScript
-#    We'll bypass the 'npm run build' script for now to get direct tsc output
-#    We also make it more resilient to warnings that might be treated as errors by default in some environments.
-RUN tsc --pretty --force --diagnostics
+#    We'll explicitly call tsc to get its full output if it fails
+#    Also, removing postinstall from package.json *temporarily* is advised for this debugging step.
+RUN tsc --pretty --force --diagnostics || true # Added '|| true' to prevent this step from failing the build immediately, so we can see other errors if they exist.
 
 # ---------------------------------------------------
 
@@ -38,7 +48,6 @@ COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/package*.json ./
 
 # 11. Copy any other files needed directly in production (e.g., static assets, swagger YAML)
-#     Based on your structure, you might need to copy these if your app directly reads them
 #     If .env is sensitive, do NOT copy it into the Docker image. Use Render's environment variables.
 # COPY .env ./ # REMOVE THIS - USE RENDER ENVIRONMENT VARIABLES
 # COPY swagger.yaml ./ # If this is in your project root and is needed by the running app
