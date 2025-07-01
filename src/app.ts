@@ -18,7 +18,7 @@ const app: Application = express();
 
 // Enable CORS for frontend (adjust origin as needed)
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: 'https://kelvisan-electrical-networks-ltd.vercel.app/',
   credentials: true,
 }));
 
