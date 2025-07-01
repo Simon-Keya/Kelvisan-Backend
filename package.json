@@ -2,11 +2,12 @@
   "name": "kelvisan-backend",
   "version": "1.0.0",
   "description": "Server side for Kelvisan Electrical Networks Limited client",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "postinstall": "npm run build"
   },
   "keywords": [],
   "author": "",
