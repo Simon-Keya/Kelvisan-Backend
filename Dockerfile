@@ -14,21 +14,16 @@ RUN npm install
 #    Make sure your .dockerignore excludes node_modules and dist here
 COPY . .
 
-# *** DIAGNOSTIC STEPS - ADDED ***
-# List files to confirm package.json and tsconfig.json are there
+# --- Diagnostic steps (Keep them for now, you can remove after success) ---
 RUN ls -la /usr/src/app/
-
-# List contents of src directory to ensure source files are copied
 RUN ls -la /usr/src/app/src/
-
-# Verify tsconfig.json content (optional, but can be useful)
 RUN cat /usr/src/app/tsconfig.json
-# ********************************
+# --- End Diagnostic steps ---
 
-# 6. Run the TypeScript build command directly with verbose output
-#    We'll explicitly call tsc to get its full output if it fails
-#    Also, removing postinstall from package.json *temporarily* is advised for this debugging step.
-RUN tsc --pretty --force --diagnostics || true # Added '|| true' to prevent this step from failing the build immediately, so we can see other errors if they exist.
+# 6. Run the TypeScript build command using 'npm exec'
+#    This ensures that the 'tsc' executable from node_modules/.bin is found and executed.
+#    Removed '|| true' as we expect this to now succeed and fail if there are *actual* TS errors.
+RUN npm exec tsc --pretty --force --diagnostics
 
 # ---------------------------------------------------
 
