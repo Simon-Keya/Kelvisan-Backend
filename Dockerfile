@@ -14,15 +14,13 @@ RUN npm install
 #    Make sure your .dockerignore excludes node_modules and dist here
 COPY . .
 
-# --- Diagnostic steps (Keep them for now, you can remove after success) ---
-RUN ls -la /usr/src/app/
-RUN ls -la /usr/src/app/src/
-RUN cat /usr/src/app/tsconfig.json
+# --- Diagnostic steps (You can remove these now if you're confident in the build) ---
+# RUN ls -la /usr/src/app/
+# RUN ls -la /usr/src/app/src/
+# RUN cat /usr/src/app/tsconfig.json
 # --- End Diagnostic steps ---
 
 # 6. Run the TypeScript build command using 'npm exec'
-#    This ensures that the 'tsc' executable from node_modules/.bin is found and executed.
-#    Removed '|| true' as we expect this to now succeed and fail if there are *actual* TS errors.
 RUN npm exec tsc --pretty --force --diagnostics
 
 # ---------------------------------------------------
@@ -41,11 +39,12 @@ ENV NODE_ENV=production
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/package*.json ./
+# NEW LINE: Copy the docs directory
+COPY --from=builder /usr/src/app/docs ./docs
 
-# 11. Copy any other files needed directly in production (e.g., static assets, swagger YAML)
+# 11. Copy any other files needed directly in production (e.g., static assets, .env, etc.)
 #     If .env is sensitive, do NOT copy it into the Docker image. Use Render's environment variables.
 # COPY .env ./ # REMOVE THIS - USE RENDER ENVIRONMENT VARIABLES
-# COPY swagger.yaml ./ # If this is in your project root and is needed by the running app
 
 # 12. Expose the port (optional, but good practice; Render uses process.env.PORT)
 EXPOSE 5000
