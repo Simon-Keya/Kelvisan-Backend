@@ -1,7 +1,16 @@
+// src/utils/db.ts
 import pg from 'pg';
 import { config } from '../utils/config'; // adjust path if needed
 
 const { Pool } = pg;
+
+// Define LoginAttempt interface directly if not used elsewhere
+export interface LoginAttempt {
+  id?: number;
+  email: string;
+  success: boolean;
+  attempted_at?: Date;
+}
 
 // Build connection string using env vars
 const connectionString = `postgresql://${config.DB_USERNAME}:${(config.DB_PASSWORD)}@${config.DB_HOST}:${config.DB_PORT}/${config.DB_NAME}`;
@@ -30,8 +39,18 @@ export const initializeDatabase = async () => {
         attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
 
+    // NEW TABLE: Categories
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // MODIFIED TABLE: Products (added category_id and foreign key constraint)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -39,6 +58,7 @@ export const initializeDatabase = async () => {
         image TEXT NOT NULL,
         description TEXT NOT NULL,
         price NUMERIC(10, 2) NOT NULL,
+        category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL, -- New column with foreign key
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);

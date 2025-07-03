@@ -1,4 +1,4 @@
-import cors from 'cors';
+
 import express, { Application } from 'express';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
@@ -6,6 +6,7 @@ import YAML from 'yamljs';
 
 // Import routes
 import authRoutes from './routes/authRoutes';
+import categoryRoutes from './routes/categoryRoutes';
 import newsletterRoutes from './routes/newsletterRoutes';
 import productRoutes from './routes/productRoutes';
 
@@ -16,11 +17,6 @@ const app: Application = express();
 
 // --- MIDDLEWARES ---
 
-// Enable CORS for frontend (adjust origin as needed)
-app.use(cors({
-  origin: 'https://kelvisan-electrical-networks-ltd.vercel.app/',
-  credentials: true,
-}));
 
 // Body parsers
 app.use(express.json()); // for application/json
@@ -34,6 +30,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/api/products', productRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/category', categoryRoutes);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));

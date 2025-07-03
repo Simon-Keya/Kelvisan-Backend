@@ -1,31 +1,52 @@
+// src/models/productModel.ts
 import pool from './db';
 
+// MODIFIED INTERFACE: Product - Defined here
 export interface Product {
   id?: number;
   name: string;
   image: string;
   description: string;
   price: number;
+  category_id?: number | null; // Nullable if not assigned to a category
+  category_name?: string | null; // For joined queries
   created_at?: Date;
 }
 
 export const getAllProducts = async (): Promise<Product[]> => {
-  const result = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
+  // JOIN with categories table to get category name
+  const result = await pool.query(`
+    SELECT
+      p.*,
+      c.name AS category_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    ORDER BY p.created_at DESC
+  `);
   return result.rows;
 };
 
 export const getProductById = async (id: number): Promise<Product | null> => {
-  const result = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+  // JOIN with categories table to get category name
+  const result = await pool.query(`
+    SELECT
+      p.*,
+      c.name AS category_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.id = $1
+  `, [id]);
   return result.rows[0] || null;
 };
 
 export const createProduct = async (product: Product): Promise<Product> => {
-  const { name, image, description, price } = product;
+  const { name, image, description, price, category_id } = product;
   const result = await pool.query(
-    'INSERT INTO products (name, image, description, price) VALUES ($1, $2, $3, $4) RETURNING *',
-    [name, image, description, price]
+    'INSERT INTO products (name, image, description, price, category_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [name, image, description, price, category_id || null] // category_id can be null
   );
-  return result.rows[0];
+  // Re-fetch with category name to return a complete Product object
+  return getProductById(result.rows[0].id) as Promise<Product>;
 };
 
 export const updateProduct = async (id: number, product: Partial<Product>): Promise<Product | null> => {
@@ -37,21 +58,23 @@ export const updateProduct = async (id: number, product: Partial<Product>): Prom
     image: product.image || existing.image,
     description: product.description || existing.description,
     price: product.price ?? existing.price,
+    category_id: product.category_id ?? existing.category_id, // Allow setting to null explicitly
   };
 
   const result = await pool.query(
-    'UPDATE products SET name = $1, image = $2, description = $3, price = $4 WHERE id = $5 RETURNING *',
-    [updated.name, updated.image, updated.description, updated.price, id]
+    'UPDATE products SET name = $1, image = $2, description = $3, price = $4, category_id = $5 WHERE id = $6 RETURNING *',
+    [updated.name, updated.image, updated.description, updated.price, updated.category_id, id]
   );
 
-  return result.rows[0];
+  if (!result.rows[0]) return null;
+  // Re-fetch with category name to return a complete Product object
+  return getProductById(result.rows[0].id) as Promise<Product>;
 };
 
 export const deleteProductById = async (productId: number): Promise<{ success: boolean; message: string }> => {
   try {
     const result = await pool.query('DELETE FROM products WHERE id = $1', [productId]);
 
-    // Safely handle possibly null rowCount
     if ((result.rowCount ?? 0) > 0) {
       return { success: true, message: '✅ Product deleted successfully' };
     } else {
@@ -62,14 +85,3 @@ export const deleteProductById = async (productId: number): Promise<{ success: b
     return { success: false, message: '❌ Internal server error' };
   }
 };
-
-
-
-
-
-
-
-
-
-
-
