@@ -5,8 +5,8 @@ info:
   description: API documentation for Kelvisan Backend (Products, Auth, Newsletter)
 
 servers:
-  - url: http://localhost:5000/api
-    description: Local development server
+  - url: https://kelvisan-backend.onrender.com/api-docs
+    description: Production server
 
 paths:
   /auth/login:
