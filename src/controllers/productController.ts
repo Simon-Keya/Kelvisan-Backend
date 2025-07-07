@@ -20,6 +20,7 @@ declare module 'express' {
   }
 }
 
+// ... rest of the code
 // Configure Cloudinary using environment variables
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

@@ -57,6 +57,7 @@ app.get('/', (_req: Request, res: Response) => {
   res.send('Kelvisan API is running...');
 });
 
+// --- END API ROUTES ---
 // Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err);
