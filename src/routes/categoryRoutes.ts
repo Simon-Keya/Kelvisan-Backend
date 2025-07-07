@@ -1,10 +1,10 @@
 // src/routes/categoryRoutes.ts
 import { Router } from 'express';
 import {
-  getCategories,
-  getSingleCategory,
   addCategory,
   editCategory,
+  getCategories,
+  getSingleCategory,
   removeCategory,
 } from '../controllers/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware'; // Assuming you have this for protected routes
