@@ -1,13 +1,13 @@
 // src/controllers/categoryController.ts
 import { Request, Response } from 'express';
 import {
-  Category, // Directly imported from its model now
+  Category,
+  createCategory,
+  deleteCategoryById, // Directly imported from its model now
   getAllCategories,
   getCategoryById,
-  createCategory,
-  updateCategory,
-  deleteCategoryById,
   getCategoryByName,
+  updateCategory,
 } from '../models/categoryModel';
 
 // GET /api/categories
@@ -102,6 +102,7 @@ export const editCategory = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({ message: 'Failed to update category' });
   }
 };
+
 
 // DELETE /api/categories/:id
 export const removeCategory = async (req: Request, res: Response): Promise<void> => {

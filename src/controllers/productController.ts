@@ -20,7 +20,6 @@ declare module 'express' {
   }
 }
 
-// ... rest of the code
 // Configure Cloudinary using environment variables
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -28,7 +27,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
   secure: true // Use HTTPS
 });
-
 
 // GET /api/products
 export const getProducts = async (_req: Request, res: Response): Promise<void> => {

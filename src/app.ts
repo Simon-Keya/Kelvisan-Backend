@@ -22,8 +22,7 @@ const app: Application = express();
 // --- MIDDLEWARES ---
 
 // Configure CORS
-// It's good that you have specific origins for production.
-// For development, 'http://localhost:3000' is crucial.
+// IMPORTANT: Ensure the origin matches your frontend's deployed URL exactly, without a trailing slash.
 app.use(cors({
   origin: ['https://kelvisan-electrical-networks-ltd.vercel.app', 'http://localhost:3000'], // Removed trailing slash from Vercel URL
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Explicitly allow methods
@@ -33,10 +32,8 @@ app.use(cors({
 
 
 // Body parsers
-// These are for application/json and application/x-www-form-urlencoded
-// Multer will handle multipart/form-data, so no changes needed here for that.
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // for application/json
+app.use(express.urlencoded({ extended: true })); // for form submissions
 
 // Serve uploaded images statically (Keeping this in case you have old local uploads,
 // but new uploads will go to Cloudinary)
@@ -47,7 +44,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/api/products', productRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/category', categoryRoutes); // Ensure this matches your frontend endpoint '/api/category'
+app.use('/api/category', categoryRoutes);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
@@ -57,12 +54,9 @@ app.get('/', (_req: Request, res: Response) => {
   res.send('Kelvisan API is running...');
 });
 
-// --- END API ROUTES ---
 // Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err);
-  // In a real application, you might want to send more specific error messages
-  // or use a dedicated error handling library.
   res.status(500).json({ message: 'Internal server error' });
 });
 
