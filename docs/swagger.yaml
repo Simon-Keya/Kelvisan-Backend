@@ -1,24 +1,26 @@
 openapi: 3.0.0
 info:
-  title: Kelvisan API
+  title: Kelvisan Electrical Networks API
   version: 1.0.0
-  description: API documentation for Kelvisan Backend (Products, Auth, Newsletter, Categories) # Updated description
+  description: API documentation for the Kelvisan Electrical Networks Ltd. backend application.
+    This API provides endpoints for authentication, product management, category management,
+    and newsletter subscriptions for an e-commerce platform.
 
 servers:
-<<<<<<< Updated upstream
-  - url: https://kelvisan-backend.onrender.com/api-docs
-=======
-  - url: http://localhost:5000/api-docs
->>>>>>> Stashed changes
-    description: Production server
+  - url: http://localhost:5000/api # Local development server
+    description: Development Server
+  - url: https://kelvisan-backend.onrender.com/api # Render deployment server
+    description: Production Server
+
+security:
+  - bearerAuth: [] # Apply bearerAuth globally, then override as needed per path
 
 paths:
-  # --- Auth Endpoints ---
-  /auth/login:
+  /auth/register:
     post:
-      summary: Admin login
+      summary: Register a new admin user
       tags:
-        - Auth
+        - Authentication
       requestBody:
         required: true
         content:
@@ -31,56 +33,104 @@ paths:
               properties:
                 email:
                   type: string
+                  format: email
                   example: admin@example.com
                 password:
                   type: string
-                  example: supersecretpassword
+                  format: password
+                  minLength: 6
+                  example: password123
+      responses:
+        '201':
+          description: Admin registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: User with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      summary: Log in an admin user
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
       responses:
         '200':
           description: Login successful
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-                    description: JWT token for authenticated requests
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           description: Invalid credentials
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Account locked due to too many failed attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /auth/register:
-    post:
-      summary: Register a new admin (Admin Only)
+  /auth/me:
+    get:
+      summary: Get current authenticated admin user's details
       tags:
-        - Auth
+        - Authentication
       security:
-        - AdminAuth: [] # Requires admin authentication to register new admins
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - email
-                - password
-              properties:
-                email:
-                  type: string
-                  example: newadmin@example.com
-                password:
-                  type: string
-                  example: securepassword123
+        - bearerAuth: [] # This route requires authentication
       responses:
-        '201':
-          description: Admin registered successfully
+        '200':
+          description: Current admin user details
           content:
             application/json:
               schema:
@@ -88,287 +138,27 @@ paths:
                 properties:
                   id:
                     type: integer
+                    example: 1
                   email:
                     type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          description: Admin with this email already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-  /auth/reset-password:
-    post:
-      summary: Reset admin password
-      tags:
-        - Auth
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - email
-                - newPassword
-              properties:
-                email:
-                  type: string
-                  example: admin@example.com
-                newPassword:
-                  type: string
-                  example: newsecurepassword
-      responses:
-        '200':
-          description: Password reset successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
+                    example: admin@example.com
+                  created_at:
                     type: string
-                    example: "Password reset successful"
-        '404':
-          description: Admin not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-  # --- Newsletter Endpoints ---
-  /newsletter/subscribe:
-    post:
-      summary: Subscribe to newsletter
-      tags:
-        - Newsletter
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - email
-              properties:
-                email:
-                  type: string
-                  format: email
-                  example: user@example.com
-      responses:
-        '201':
-          description: Subscribed successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Subscription successful"
-        '400':
-          description: Invalid email or missing fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: Email already subscribed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-  /newsletter:
-    get:
-      summary: Get all newsletter subscribers (Admin Only)
-      tags:
-        - Newsletter
-      security:
-        - AdminAuth: [] # This endpoint requires admin authentication
-      responses:
-        '200':
-          description: List of subscribers
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/NewsletterSubscriber'
+                    format: date-time
         '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  # --- Product Endpoints ---
-  /products:
-    get:
-      summary: Get all products
-      tags:
-        - Products
-      responses:
-        '200':
-          description: List of products
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Product'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-    post:
-      summary: Create a new product (Admin Only)
-      tags:
-        - Products
-      security:
-        - AdminAuth: [] # Requires admin authentication
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ProductInput'
-      responses:
-        '201':
-          description: Product created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          description: Invalid input or category_id not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-  /products/{id}:
-    get:
-      summary: Get a product by ID
-      tags:
-        - Products
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-          description: Numeric ID of the product to retrieve
-      responses:
-        '200':
-          description: Product found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-    put:
-      summary: Update a product (Admin Only)
-      tags:
-        - Products
-      security:
-        - AdminAuth: [] # Requires admin authentication
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-          description: Numeric ID of the product to update
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ProductInput' # Can use Partial<ProductInput> if fields are optional
-      responses:
-        '200':
-          description: Product updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          description: Invalid input or category_id not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-    delete:
-      summary: Delete a product (Admin Only)
-      tags:
-        - Products
-      security:
-        - AdminAuth: [] # Requires admin authentication
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-          description: Numeric ID of the product to delete
-      responses:
-        '200':
-          description: Product deleted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Product deleted successfully"
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
-  # --- Category Endpoints (New) ---
-  /categories:
+  /category: # Backend uses /api/category (singular)
     get:
       summary: Get all product categories
       tags:
@@ -383,19 +173,33 @@ paths:
                 items:
                   $ref: '#/components/schemas/Category'
         '500':
-          $ref: '#/components/responses/ServerError'
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
-      summary: Create a new category (Admin Only)
+      summary: Create a new product category
       tags:
         - Categories
       security:
-        - AdminAuth: []
+        - bearerAuth: [] # Requires authentication
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CategoryInput'
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: Electronics
+                description:
+                  type: string
+                  nullable: true
+                  example: Devices and gadgets
       responses:
         '201':
           description: Category created successfully
@@ -404,21 +208,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/Category'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Invalid input (e.g., missing name)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: Category with this name already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /categories/{id}:
+  /category/{id}: # Backend uses /api/category (singular)
     get:
-      summary: Get a single category by ID
+      summary: Get a single product category by ID
       tags:
         - Categories
       parameters:
@@ -426,7 +242,6 @@ paths:
           name: id
           schema:
             type: integer
-            format: int64
           required: true
           description: Numeric ID of the category to retrieve
       responses:
@@ -437,23 +252,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/Category'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     put:
-      summary: Update an existing category (Admin Only)
+      summary: Update an existing product category
       tags:
         - Categories
       security:
-        - AdminAuth: []
+        - bearerAuth: [] # Requires authentication
       parameters:
         - in: path
           name: id
           schema:
             type: integer
-            format: int64
           required: true
           description: Numeric ID of the category to update
       requestBody:
@@ -461,7 +287,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CategoryInput'
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Updated Electronics
+                description:
+                  type: string
+                  nullable: true
+                  example: All kinds of electronic devices
       responses:
         '200':
           description: Category updated successfully
@@ -470,31 +304,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/Category'
         '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Category with this name already exists
+          description: Invalid input or ID format
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Category name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
-      summary: Delete a category by ID (Admin Only)
+      summary: Delete a product category by ID
       tags:
         - Categories
       security:
-        - AdminAuth: []
+        - bearerAuth: [] # Requires authentication
       parameters:
         - in: path
           name: id
           schema:
             type: integer
-            format: int64
           required: true
           description: Numeric ID of the category to delete
       responses:
@@ -507,31 +356,337 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Category deleted successfully"
+                    example: Category deleted successfully
         '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Cannot delete category: products are assigned to it.
+          description: Invalid ID format
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Cannot delete category because products are assigned to it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          $ref: '#/components/responses/ServerError'
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products:
+    get:
+      summary: Get all products
+      tags:
+        - Products
+      responses:
+        '200':
+          description: A list of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create a new product (with image upload)
+      tags:
+        - Products
+      security:
+        - bearerAuth: [] # Requires authentication
+      requestBody:
+        required: true
+        content:
+          multipart/form-data: # Crucial for file uploads
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid input or missing required fields (e.g., name, description, price, image)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{id}:
+    get:
+      summary: Get a single product by ID
+      tags:
+        - Products
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of the product to retrieve
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update an existing product (with optional image upload)
+      tags:
+        - Products
+      security:
+        - bearerAuth: [] # Requires authentication
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of the product to update
+      requestBody:
+        required: true
+        content:
+          multipart/form-data: # Crucial for file uploads
+            schema:
+              $ref: '#/components/schemas/ProductUpdateRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid input, ID format, or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a product by ID
+      tags:
+        - Products
+      security:
+        - bearerAuth: [] # Requires authentication
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of the product to delete
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Product deleted successfully
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /newsletter:
+    post:
+      summary: Subscribe to the newsletter
+      tags:
+        - Newsletter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: subscriber@example.com
+      responses:
+        '201':
+          description: Subscription successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsletterSubscription'
+        '400':
+          description: Invalid email or email already subscribed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   securitySchemes:
-    AdminAuth: # Renamed from bearerAuth for clarity
+    bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT token for Admin authentication
+      description: |
+        JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"
 
   schemas:
+    Admin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        email:
+          type: string
+          format: email
+          example: admin@example.com
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2023-10-26T10:00:00Z'
+
+    LoginAttempt:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        success:
+          type: boolean
+          example: true
+        attempted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2023-10-26T10:05:00Z'
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        name:
+          type: string
+          example: Energy
+        description:
+          type: string
+          nullable: true
+          example: Products related to energy solutions.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2023-10-26T10:10:00Z'
+
     Product:
       type: object
       properties:
@@ -541,69 +696,88 @@ components:
           example: 1
         name:
           type: string
-          example: "Smart LED Bulb"
+          example: Solar Panel 300W
         image:
           type: string
-          description: URL or path to the product image
-          example: "https://example.com/images/smart-bulb.jpg"
+          format: url
+          example: https://res.cloudinary.com/your_cloud_name/image/upload/v1234567890/kelvisan_products/solar_panel.jpg
         description:
           type: string
-          example: "Wi-Fi enabled smart LED bulb with dimming and color control."
+          example: High-efficiency monocrystalline solar panel.
         price:
           type: number
           format: float
-          example: 25.99
-        category_id: # New field
+          example: 299.99
+        category_id:
           type: integer
           nullable: true
-          description: ID of the category this product belongs to (optional)
           example: 1
-        category_name: # New field for joined data
+        category_name:
           type: string
           nullable: true
-          readOnly: true
-          description: Name of the category this product belongs to (returned from join)
-          example: "Lighting"
+          example: Energy
         created_at:
           type: string
           format: date-time
           readOnly: true
-          example: "2024-07-03T10:00:00Z"
-      required:
-        - name
-        - image
-        - description
-        - price
+          example: '2023-10-26T10:15:00Z'
 
-    ProductInput:
+    ProductCreateRequest: # Schema for multipart/form-data POST /products
       type: object
       required:
         - name
-        - image
         - description
         - price
+        - image
       properties:
         name:
           type: string
-          example: "Smart LED Bulb"
-        image:
-          type: string
-          description: URL or path to the product image
-          example: "https://example.com/images/smart-bulb.jpg"
+          example: New Energy Product
         description:
           type: string
-          example: "Wi-Fi enabled smart LED bulb with dimming and color control."
+          example: A description of the new energy product.
+        # Price is sent as a string in FormData, but should be a number
         price:
           type: number
           format: float
-          example: 25.99
-        category_id: # New field
+          example: 150.00
+        category_id:
           type: integer
           nullable: true
-          description: ID of the category this product belongs to (optional)
           example: 1
+        # Indicates a file upload
+        image:
+          type: string
+          format: binary
 
-    NewsletterSubscriber: # Existing schema improved with example
+    ProductUpdateRequest: # Schema for multipart/form-data PUT /products/{id}
+      type: object
+      properties:
+        name:
+          type: string
+          example: Updated Product Name
+        description:
+          type: string
+          example: An updated description.
+        # Price is sent as a string in FormData, but should be a number
+        price:
+          type: number
+          format: float
+          example: 175.50
+        category_id:
+          type: integer
+          nullable: true
+          example: 2
+        # For new image upload
+        image:
+          type: string
+          format: binary
+        image_url: # For retaining existing image if no new file is uploaded
+          type: string
+          format: url
+          example: https://res.cloudinary.com/your_cloud_name/image/upload/v1234567890/kelvisan_products/existing_image.jpg
+
+    NewsletterSubscription:
       type: object
       properties:
         id:
@@ -618,80 +792,11 @@ components:
           type: string
           format: date-time
           readOnly: true
-          example: "2024-07-03T09:30:00Z"
-      required:
-        - email
+          example: '2023-10-26T10:20:00Z'
 
-    Category: # New Schema
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-          example: 1
-        name:
-          type: string
-          example: "Lighting"
-        description:
-          type: string
-          nullable: true
-          example: "LED bulbs, lamps, and outdoor lighting solutions."
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          example: "2024-07-03T09:00:00Z"
-      required:
-        - name
-
-    CategoryInput: # New Schema for creating/updating categories
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          example: "Wiring Accessories"
-        description:
-          type: string
-          nullable: true
-          example: "Switches, sockets, and other electrical installation components."
-
-    ErrorResponse: # Reusable error response schema
+    Error:
       type: object
       properties:
         message:
           type: string
-          example: "Invalid credentials"
-
-  responses:
-    BadRequest: # 400
-      description: Invalid input data or missing required fields
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Unauthorized: # 401
-      description: Authentication required or invalid/expired token
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Forbidden: # 403
-      description: Not authorized to access this resource
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    NotFound: # 404
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    ServerError: # 500
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+          example: Something went wrong.
