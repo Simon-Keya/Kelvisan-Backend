@@ -2,13 +2,18 @@ openapi: 3.0.0
 info:
   title: Kelvisan API
   version: 1.0.0
-  description: API documentation for Kelvisan Backend (Products, Auth, Newsletter)
+  description: API documentation for Kelvisan Backend (Products, Auth, Newsletter, Categories) # Updated description
 
 servers:
+<<<<<<< Updated upstream
   - url: https://kelvisan-backend.onrender.com/api-docs
+=======
+  - url: http://localhost:5000/api-docs
+>>>>>>> Stashed changes
     description: Production server
 
 paths:
+  # --- Auth Endpoints ---
   /auth/login:
     post:
       summary: Admin login
@@ -26,19 +31,37 @@ paths:
               properties:
                 email:
                   type: string
+                  example: admin@example.com
                 password:
                   type: string
+                  example: supersecretpassword
       responses:
         '200':
           description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token for authenticated requests
         '401':
           description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /auth/register:
     post:
-      summary: Register a new admin
+      summary: Register a new admin (Admin Only)
       tags:
         - Auth
+      security:
+        - AdminAuth: [] # Requires admin authentication to register new admins
       requestBody:
         required: true
         content:
@@ -51,13 +74,34 @@ paths:
               properties:
                 email:
                   type: string
+                  example: newadmin@example.com
                 password:
                   type: string
+                  example: securepassword123
       responses:
         '201':
           description: Admin registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  email:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '409':
-          description: Admin already exists
+          description: Admin with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /auth/reset-password:
     post:
@@ -76,14 +120,31 @@ paths:
               properties:
                 email:
                   type: string
+                  example: admin@example.com
                 newPassword:
                   type: string
+                  example: newsecurepassword
       responses:
         '200':
           description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset successful"
         '404':
           description: Admin not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
+  # --- Newsletter Endpoints ---
   /newsletter/subscribe:
     post:
       summary: Subscribe to newsletter
@@ -100,17 +161,41 @@ paths:
               properties:
                 email:
                   type: string
+                  format: email
+                  example: user@example.com
       responses:
         '201':
           description: Subscribed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Subscription successful"
         '400':
-          description: Invalid email
+          description: Invalid email or missing fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already subscribed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /newsletter:
     get:
-      summary: Get all newsletter subscribers
+      summary: Get all newsletter subscribers (Admin Only)
       tags:
         - Newsletter
+      security:
+        - AdminAuth: [] # This endpoint requires admin authentication
       responses:
         '200':
           description: List of subscribers
@@ -119,16 +204,15 @@ paths:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    email:
-                      type: string
-                    subscribed_at:
-                      type: string
-                      format: date-time
+                  $ref: '#/components/schemas/NewsletterSubscriber'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
+  # --- Product Endpoints ---
   /products:
     get:
       summary: Get all products
@@ -143,11 +227,15 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Product'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
     post:
-      summary: Create a new product
+      summary: Create a new product (Admin Only)
       tags:
         - Products
+      security:
+        - AdminAuth: [] # Requires admin authentication
       requestBody:
         required: true
         content:
@@ -156,11 +244,23 @@ paths:
               $ref: '#/components/schemas/ProductInput'
       responses:
         '201':
-          description: Product created
+          description: Product created successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid input or category_id not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /products/{id}:
     get:
@@ -173,6 +273,8 @@ paths:
           required: true
           schema:
             type: integer
+            format: int64
+          description: Numeric ID of the product to retrieve
       responses:
         '200':
           description: Product found
@@ -180,57 +282,254 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Product not found
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
     put:
-      summary: Update a product
+      summary: Update a product (Admin Only)
       tags:
         - Products
+      security:
+        - AdminAuth: [] # Requires admin authentication
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: integer
+            format: int64
+          description: Numeric ID of the product to update
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductInput'
+              $ref: '#/components/schemas/ProductInput' # Can use Partial<ProductInput> if fields are optional
       responses:
         '200':
-          description: Product updated
+          description: Product updated successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid input or category_id not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Product not found
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
     delete:
-      summary: Delete a product
+      summary: Delete a product (Admin Only)
       tags:
         - Products
+      security:
+        - AdminAuth: [] # Requires admin authentication
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: integer
+            format: int64
+          description: Numeric ID of the product to delete
       responses:
         '200':
-          description: Product deleted
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Product deleted successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Product not found
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # --- Category Endpoints (New) ---
+  /categories:
+    get:
+      summary: Get all product categories
+      tags:
+        - Categories
+      responses:
+        '200':
+          description: A list of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      summary: Create a new category (Admin Only)
+      tags:
+        - Categories
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Category with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /categories/{id}:
+    get:
+      summary: Get a single category by ID
+      tags:
+        - Categories
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+            format: int64
+          required: true
+          description: Numeric ID of the category to retrieve
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      summary: Update an existing category (Admin Only)
+      tags:
+        - Categories
+      security:
+        - AdminAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+            format: int64
+          required: true
+          description: Numeric ID of the category to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Category with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      summary: Delete a category by ID (Admin Only)
+      tags:
+        - Categories
+      security:
+        - AdminAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+            format: int64
+          required: true
+          description: Numeric ID of the category to delete
+      responses:
+        '200':
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Category deleted successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete category: products are assigned to it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
 components:
   securitySchemes:
-    bearerAuth:
+    AdminAuth: # Renamed from bearerAuth for clarity
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT token for Admin authentication
 
   schemas:
     Product:
@@ -238,19 +537,43 @@ components:
       properties:
         id:
           type: integer
+          readOnly: true
+          example: 1
         name:
           type: string
+          example: "Smart LED Bulb"
         image:
           type: string
           description: URL or path to the product image
+          example: "https://example.com/images/smart-bulb.jpg"
         description:
           type: string
+          example: "Wi-Fi enabled smart LED bulb with dimming and color control."
         price:
           type: number
           format: float
+          example: 25.99
+        category_id: # New field
+          type: integer
+          nullable: true
+          description: ID of the category this product belongs to (optional)
+          example: 1
+        category_name: # New field for joined data
+          type: string
+          nullable: true
+          readOnly: true
+          description: Name of the category this product belongs to (returned from join)
+          example: "Lighting"
         created_at:
           type: string
           format: date-time
+          readOnly: true
+          example: "2024-07-03T10:00:00Z"
+      required:
+        - name
+        - image
+        - description
+        - price
 
     ProductInput:
       type: object
@@ -262,11 +585,113 @@ components:
       properties:
         name:
           type: string
+          example: "Smart LED Bulb"
         image:
           type: string
           description: URL or path to the product image
+          example: "https://example.com/images/smart-bulb.jpg"
         description:
           type: string
+          example: "Wi-Fi enabled smart LED bulb with dimming and color control."
         price:
           type: number
           format: float
+          example: 25.99
+        category_id: # New field
+          type: integer
+          nullable: true
+          description: ID of the category this product belongs to (optional)
+          example: 1
+
+    NewsletterSubscriber: # Existing schema improved with example
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        email:
+          type: string
+          format: email
+          example: subscriber@example.com
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2024-07-03T09:30:00Z"
+      required:
+        - email
+
+    Category: # New Schema
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        name:
+          type: string
+          example: "Lighting"
+        description:
+          type: string
+          nullable: true
+          example: "LED bulbs, lamps, and outdoor lighting solutions."
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2024-07-03T09:00:00Z"
+      required:
+        - name
+
+    CategoryInput: # New Schema for creating/updating categories
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Wiring Accessories"
+        description:
+          type: string
+          nullable: true
+          example: "Switches, sockets, and other electrical installation components."
+
+    ErrorResponse: # Reusable error response schema
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Invalid credentials"
+
+  responses:
+    BadRequest: # 400
+      description: Invalid input data or missing required fields
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized: # 401
+      description: Authentication required or invalid/expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden: # 403
+      description: Not authorized to access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound: # 404
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServerError: # 500
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

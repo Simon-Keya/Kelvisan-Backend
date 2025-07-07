@@ -3,8 +3,8 @@ import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const EXPIRES_IN = '30min';
+const JWT_SECRET = process.env.JWT_SECRET || 'your secret key';
+const EXPIRES_IN = '60min';
 
 export const generateToken = (payload: object): string => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: EXPIRES_IN });

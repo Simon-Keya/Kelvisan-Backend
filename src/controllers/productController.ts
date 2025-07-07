@@ -1,24 +1,32 @@
 // src/controllers/productController.ts
+import { v2 as cloudinary } from 'cloudinary'; // Import Cloudinary
 import { Request, Response } from 'express';
+import { getCategoryById } from '../models/categoryModel';
 import {
-  Product, // Directly imported from its model now
+  Product,
   createProduct,
   deleteProductById,
   getAllProducts,
   getProductById,
   updateProduct,
 } from '../models/productModel';
-import { getCategoryById } from '../models/categoryModel'; // Import to validate category_id
 
-// Define Express Request interface extension if needed (Admin is likely used in auth middleware)
-// If you have authMiddleware, you might have this already.
-// If not, and you use req.admin, you'll need to define it where authenticateAdmin is used,
-// or provide a minimal definition here. For now, assuming it's handled or not strictly needed here.
-// declare namespace Express {
-//   export interface Request {
-//     admin?: { id: number; email: string };
-//   }
-// }
+// IMPORTANT: Extend the Express Request interface to include 'file' property from Multer
+declare module 'express' {
+  export interface Request {
+    file?: Express.Multer.File;
+    // If you have an admin property from authMiddleware, define it here too:
+    // admin?: { id: number; email: string };
+  }
+}
+
+// Configure Cloudinary using environment variables
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true // Use HTTPS
+});
 
 
 // GET /api/products
@@ -57,33 +65,63 @@ export const getSingleProduct = async (req: Request, res: Response): Promise<voi
 // POST /api/products
 export const addProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, image, description, price, category_id } = req.body;
+    const { name, description, price, category_id } = req.body; // Text fields from FormData
+    const imageFile = req.file; // File from Multer
 
-    if (!name || !image || !description || typeof price !== 'number') {
-      res.status(400).json({ message: 'Name, image, description, and price are required' });
+    let imageUrl: string;
+
+    // 1. Handle image upload to Cloudinary
+    if (imageFile) {
+      // Convert buffer to data URI for Cloudinary upload
+      const dataUri = `data:${imageFile.mimetype};base64,${imageFile.buffer.toString('base64')}`;
+      const uploadResult = await cloudinary.uploader.upload(dataUri, {
+        folder: 'kelvisan_products', // Optional: folder in Cloudinary
+        resource_type: 'auto' // Automatically detect file type
+      });
+      imageUrl = uploadResult.secure_url; // Get the secure URL from Cloudinary
+    } else {
+      res.status(400).json({ message: 'Image file is required for new products.' });
       return;
     }
 
-    // Validate category_id if provided
-    if (category_id !== undefined && category_id !== null) {
-      if (isNaN(parseInt(category_id))) {
-        res.status(400).json({ message: 'Invalid category_id format' });
+    // 2. Validate other required fields
+    // Note: FormData sends all non-file fields as strings, so parse 'price'
+    if (!name || !description || typeof price !== 'string' || isNaN(parseFloat(price))) {
+      res.status(400).json({ message: 'Name, description, and a valid price are required' });
+      return;
+    }
+    const parsedPrice = parseFloat(price);
+
+    // 3. Validate and parse category_id
+    let parsedCategoryId: number | null = null;
+    if (category_id !== undefined && category_id !== null && category_id !== '') {
+      parsedCategoryId = parseInt(category_id);
+      if (isNaN(parsedCategoryId)) {
+        res.status(400).json({ message: 'Invalid category_id format.' });
         return;
       }
-      const category = await getCategoryById(category_id);
+      const category = await getCategoryById(parsedCategoryId);
       if (!category) {
-        res.status(400).json({ message: `Category with ID ${category_id} not found` });
+        res.status(400).json({ message: `Category with ID ${parsedCategoryId} not found.` });
         return;
       }
     }
 
-    const product: Product = { name, image, description, price, category_id: category_id || null };
+    // 4. Create product in database
+    const product: Product = {
+      name,
+      image: imageUrl, // Use the Cloudinary URL
+      description,
+      price: parsedPrice,
+      category_id: parsedCategoryId,
+    };
     const newProduct = await createProduct(product);
     res.status(201).json(newProduct);
+
   } catch (error: any) {
     if (error.code === '23503') { // PostgreSQL foreign key violation error code
-        res.status(400).json({ message: `Invalid category_id: Category does not exist.` });
-        return;
+      res.status(400).json({ message: `Invalid category_id: Category does not exist.` });
+      return;
     }
     console.error('Error creating product:', error);
     res.status(500).json({ message: 'Failed to create product' });
@@ -99,35 +137,81 @@ export const editProduct = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const { category_id } = req.body;
+    const { name, description, price, category_id, image_url } = req.body; // image_url is for existing image
+    const imageFile = req.file; // New uploaded image file
 
-    // Validate category_id if provided for update
-    if (category_id !== undefined && category_id !== null) {
-      if (isNaN(parseInt(category_id))) {
-        res.status(400).json({ message: 'Invalid category_id format' });
-        return;
-      }
-      const category = await getCategoryById(category_id);
-      if (!category) {
-        res.status(400).json({ message: `Category with ID ${category_id} not found` });
-        return;
-      }
+    let imageUrlToUpdate: string;
+
+    // Handle image update logic
+    if (imageFile) {
+      // New image uploaded, upload it to Cloudinary
+      const dataUri = `data:${imageFile.mimetype};base64,${imageFile.buffer.toString('base64')}`;
+      const uploadResult = await cloudinary.uploader.upload(dataUri, {
+        folder: 'kelvisan_products',
+        resource_type: 'auto'
+      });
+      imageUrlToUpdate = uploadResult.secure_url;
+      console.log('Received new image file for update:', imageFile.originalname);
+    } else if (image_url) {
+      // No new image, but an existing image URL was passed (meaning user didn't change image)
+      imageUrlToUpdate = image_url;
+    } else {
+      // No new image and no existing image URL means image is missing
+      res.status(400).json({ message: 'Image is required. Please upload a new image or ensure an existing image URL is present.' });
+      return;
     }
 
-    const updatedProduct = await updateProduct(id, req.body);
+    // Prepare update object
+    const updateData: Partial<Product> = {
+      name,
+      description,
+      image: imageUrlToUpdate, // Use the determined image URL
+    };
+
+    // Parse and validate price
+    if (price !== undefined && typeof price === 'string') {
+        updateData.price = parseFloat(price);
+        if (isNaN(updateData.price)) {
+            res.status(400).json({ message: 'Invalid price format.' });
+            return;
+        }
+    } else if (price !== undefined) { // If price is already a number
+        updateData.price = price;
+    }
+
+
+    // Validate and assign category_id if provided
+    if (category_id !== undefined && category_id !== null && category_id !== '') {
+      const parsedCategoryId = parseInt(category_id);
+      if (isNaN(parsedCategoryId)) {
+        res.status(400).json({ message: 'Invalid category_id format.' });
+        return;
+      }
+      const category = await getCategoryById(parsedCategoryId);
+      if (!category) {
+        res.status(400).json({ message: `Category with ID ${parsedCategoryId} not found.` });
+        return;
+      }
+      updateData.category_id = parsedCategoryId;
+    } else if (category_id === '') { // Allow setting category_id to null if empty string is sent
+        updateData.category_id = null;
+    }
+
+
+    const updatedProduct = await updateProduct(id, updateData);
     if (!updatedProduct) {
-      res.status(404).json({ message: 'Product not found' });
+      res.status(404).json({ message: 'Product not found.' });
       return;
     }
 
     res.status(200).json(updatedProduct);
   } catch (error: any) {
-    if (error.code === '23503') {
-        res.status(400).json({ message: `Invalid category_id: Category does not exist.` });
-        return;
+    if (error.code === '23503') { // PostgreSQL foreign key violation error code
+      res.status(400).json({ message: `Invalid category_id: Category does not exist.` });
+      return;
     }
     console.error('Error updating product:', error);
-    res.status(500).json({ message: 'Failed to update product' });
+    res.status(500).json({ message: 'Failed to update product.' });
   }
 };
 
