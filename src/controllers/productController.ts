@@ -1,22 +1,15 @@
-// src/controllers/productController.ts
 import { v2 as cloudinary } from 'cloudinary'; // Import Cloudinary
 import { Request, Response } from 'express';
-import { getCategoryById } from '../models/categoryModel';
-import {
-  Product,
-  createProduct,
-  deleteProductById,
-  getAllProducts,
-  getProductById,
-  updateProduct,
-} from '../models/productModel';
+import CategoryModel from '../models/categoryModel'; // Import the default exported instance of CategoryModel
+import ProductModel from '../models/productModel'; // Import the default exported instance of ProductModel
+import { Product } from '../types/product'; // Import the Product interface from its type definition file
 
 // IMPORTANT: Extend the Express Request interface to include 'file' property from Multer
 declare module 'express' {
   export interface Request {
     file?: Express.Multer.File;
     // If you have an admin property from authMiddleware, define it here too:
-    // admin?: { id: number; email: string };
+    // admin?: { id: string; email: string }; // Assuming admin ID is also UUID
   }
 }
 
@@ -31,7 +24,7 @@ cloudinary.config({
 // GET /api/products
 export const getProducts = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const products = await getAllProducts();
+    const products = await ProductModel.findAll(); // Call method on the imported instance
     res.status(200).json(products);
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -42,13 +35,10 @@ export const getProducts = async (_req: Request, res: Response): Promise<void> =
 // GET /api/products/:id
 export const getSingleProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid product ID' });
-      return;
-    }
+    const { id } = req.params; // ID is a string (UUID)
+    // No parseInt needed for UUIDs
 
-    const product = await getProductById(id);
+    const product = await ProductModel.findById(id); // Call method on the imported instance
     if (!product) {
       res.status(404).json({ message: 'Product not found' });
       return;
@@ -91,30 +81,28 @@ export const addProduct = async (req: Request, res: Response): Promise<void> => 
     }
     const parsedPrice = parseFloat(price);
 
-    // 3. Validate and parse category_id
-    let parsedCategoryId: number | null = null;
+    // 3. Validate and use category_id (now as string/UUID)
+    let categoryIdToUse: string | null = null;
     if (category_id !== undefined && category_id !== null && category_id !== '') {
-      parsedCategoryId = parseInt(category_id);
-      if (isNaN(parsedCategoryId)) {
-        res.status(400).json({ message: 'Invalid category_id format.' });
-        return;
-      }
-      const category = await getCategoryById(parsedCategoryId);
+      // category_id is expected to be a string (UUID)
+      categoryIdToUse = String(category_id); // Ensure it's treated as string
+      // Validate if category exists (assuming getCategoryById expects string ID)
+      const category = await CategoryModel.getCategoryById(categoryIdToUse); // Call method on the imported instance
       if (!category) {
-        res.status(400).json({ message: `Category with ID ${parsedCategoryId} not found.` });
+        res.status(400).json({ message: `Category with ID ${categoryIdToUse} not found.` });
         return;
       }
     }
 
     // 4. Create product in database
-    const product: Product = {
+    const productData: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'category_name'> = {
       name,
-      image: imageUrl, // Use the Cloudinary URL
+      image_url: imageUrl, // Use the Cloudinary URL and correct property name
       description,
       price: parsedPrice,
-      category_id: parsedCategoryId,
+      category_id: categoryIdToUse,
     };
-    const newProduct = await createProduct(product);
+    const newProduct = await ProductModel.create(productData); // Call method on the imported instance
     res.status(201).json(newProduct);
 
   } catch (error: any) {
@@ -130,16 +118,13 @@ export const addProduct = async (req: Request, res: Response): Promise<void> => 
 // PUT /api/products/:id
 export const editProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid product ID' });
-      return;
-    }
+    const { id } = req.params; // ID is a string (UUID)
+    // No parseInt needed for UUIDs
 
     const { name, description, price, category_id, image_url } = req.body; // image_url is for existing image
     const imageFile = req.file; // New uploaded image file
 
-    let imageUrlToUpdate: string;
+    let imageUrlToUpdate: string | undefined; // Can be undefined if no image update
 
     // Handle image update logic
     if (imageFile) {
@@ -155,49 +140,59 @@ export const editProduct = async (req: Request, res: Response): Promise<void> =>
       // No new image, but an existing image URL was passed (meaning user didn't change image)
       imageUrlToUpdate = image_url;
     } else {
-      // No new image and no existing image URL means image is missing
-      res.status(400).json({ message: 'Image is required. Please upload a new image or ensure an existing image URL is present.' });
-      return;
+      // If neither new file nor existing URL is provided, and it's an update,
+      // we might want to keep the old image or allow it to be null.
+      // For now, if no image data is sent, we don't update the image_url field.
+      // If you want to explicitly allow setting image_url to null, you'd need a specific flag from the frontend.
+      const existingProduct = await ProductModel.findById(id);
+      if (existingProduct) {
+        imageUrlToUpdate = existingProduct.image_url;
+      } else {
+         res.status(404).json({ message: 'Product not found for update.' });
+         return;
+      }
     }
 
     // Prepare update object
-    const updateData: Partial<Product> = {
-      name,
-      description,
-      image: imageUrlToUpdate, // Use the determined image URL
-    };
+    const updateData: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at' | 'category_name'>> = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (imageUrlToUpdate !== undefined) updateData.image_url = imageUrlToUpdate; // Use image_url
 
     // Parse and validate price
-    if (price !== undefined && typeof price === 'string') {
-        updateData.price = parseFloat(price);
-        if (isNaN(updateData.price)) {
-            res.status(400).json({ message: 'Invalid price format.' });
-            return;
+    if (price !== undefined) {
+      if (typeof price === 'string') {
+        const parsedPrice = parseFloat(price);
+        if (isNaN(parsedPrice)) {
+          res.status(400).json({ message: 'Invalid price format.' });
+          return;
         }
-    } else if (price !== undefined) { // If price is already a number
+        updateData.price = parsedPrice;
+      } else if (typeof price === 'number') {
         updateData.price = price;
+      } else {
+        res.status(400).json({ message: 'Invalid price format.' });
+        return;
+      }
     }
-
 
     // Validate and assign category_id if provided
-    if (category_id !== undefined && category_id !== null && category_id !== '') {
-      const parsedCategoryId = parseInt(category_id);
-      if (isNaN(parsedCategoryId)) {
-        res.status(400).json({ message: 'Invalid category_id format.' });
-        return;
-      }
-      const category = await getCategoryById(parsedCategoryId);
-      if (!category) {
-        res.status(400).json({ message: `Category with ID ${parsedCategoryId} not found.` });
-        return;
-      }
-      updateData.category_id = parsedCategoryId;
-    } else if (category_id === '') { // Allow setting category_id to null if empty string is sent
+    if (category_id !== undefined) {
+      if (category_id === null || category_id === '') { // Allow setting category_id to null
         updateData.category_id = null;
+      } else {
+        const categoryIdToUse = String(category_id); // Ensure it's treated as string (UUID)
+        const category = await CategoryModel.getCategoryById(categoryIdToUse); // Call method on the imported instance
+        if (!category) {
+          res.status(400).json({ message: `Category with ID ${categoryIdToUse} not found.` });
+          return;
+        }
+        updateData.category_id = categoryIdToUse;
+      }
     }
 
-
-    const updatedProduct = await updateProduct(id, updateData);
+    const updatedProduct = await ProductModel.update(id, updateData); // Call method on the imported instance
     if (!updatedProduct) {
       res.status(404).json({ message: 'Product not found.' });
       return;
@@ -217,13 +212,10 @@ export const editProduct = async (req: Request, res: Response): Promise<void> =>
 // DELETE /api/products/:id
 export const removeProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid product ID' });
-      return;
-    }
+    const { id } = req.params; // ID is a string (UUID)
+    // No parseInt needed for UUIDs
 
-    const result = await deleteProductById(id);
+    const result = await ProductModel.delete(id); // Call method on the imported instance
     if (!result.success) {
       res.status(result.message.includes('No product found') ? 404 : 500).json({ message: result.message });
       return;

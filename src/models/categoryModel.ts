@@ -1,69 +1,101 @@
-// src/models/categoryModel.ts
-import pool from './db';
+import { Category } from '../types/category'; // Import the Category type
+import db from './db'; // Import the Knex instance
 
-// NEW INTERFACE: Category - Defined here
-export interface Category {
-  id?: number;
-  name: string;
-  description?: string;
-  created_at?: Date;
+class CategoryModel {
+  private tableName = 'categories';
+
+  /**
+   * Fetches a category by its ID.
+   * @param id The UUID (string) of the category.
+   * @returns A promise that resolves to a Category object or null if not found.
+   */
+  async getCategoryById(id: string): Promise<Category | null> {
+    try {
+      const category = await db<Category>(this.tableName).where({ id }).first();
+      return category || null;
+    } catch (error) {
+      console.error(`Error fetching category by ID (${id}):`, error);
+      throw new Error(`Failed to retrieve category with ID ${id}.`);
+    }
+  }
+
+  /**
+   * Fetches a category by its name.
+   * @param name The name (string) of the category.
+   * @returns A promise that resolves to a Category object or null if not found.
+   */
+  async getCategoryByName(name: string): Promise<Category | null> {
+    try {
+      const category = await db<Category>(this.tableName).where({ name }).first();
+      return category || null;
+    } catch (error) {
+      console.error(`Error fetching category by name (${name}):`, error);
+      throw new Error(`Failed to retrieve category with name ${name}.`);
+    }
+  }
+
+  /**
+   * Fetches all categories.
+   * @returns A promise that resolves to an array of Category objects.
+   */
+  async getAllCategories(): Promise<Category[]> {
+    try {
+      const categories = await db<Category>(this.tableName).select('*').orderBy('name', 'asc');
+      return categories;
+    } catch (error) {
+      console.error('Error fetching all categories:', error);
+      throw new Error('Failed to retrieve categories.');
+    }
+  }
+
+  /**
+   * Creates a new category.
+   * @param categoryData The data for the new category (excluding ID, timestamps).
+   * @returns A promise that resolves to the newly created Category object.
+   */
+  async createCategory(categoryData: Omit<Category, 'id' | 'created_at' | 'updated_at'>): Promise<Category> {
+    try {
+      const [newCategory] = await db<Category>(this.tableName).insert(categoryData).returning('*');
+      return newCategory;
+    } catch (error) {
+      console.error('Error creating category:', error);
+      throw new Error('Failed to create category.');
+    }
+  }
+
+  /**
+   * Updates an existing category.
+   * @param id The UUID of the category to update.
+   * @param categoryData The partial data to update.
+   * @returns A promise that resolves to the updated Category object or null if not found.
+   */
+  async updateCategory(id: string, categoryData: Partial<Omit<Category, 'id' | 'created_at' | 'updated_at'>>): Promise<Category | null> {
+    try {
+      const [updatedCategory] = await db<Category>(this.tableName)
+        .where({ id })
+        .update({ ...categoryData, updated_at: db.fn.now() })
+        .returning('*');
+      return updatedCategory || null;
+    } catch (error) {
+      console.error(`Error updating category with ID ${id}:`, error);
+      throw new Error(`Failed to update category with ID ${id}.`);
+    }
+  }
+
+  /**
+   * Deletes a category by its ID.
+   * @param id The UUID of the category to delete.
+   * @returns A promise that resolves to the number of deleted rows.
+   */
+  async deleteCategory(id: string): Promise<number> {
+    try {
+      const deletedRows = await db(this.tableName).where({ id }).del();
+      return deletedRows;
+    } catch (error) {
+      console.error(`Error deleting category with ID ${id}:`, error);
+      throw new Error(`Failed to delete category with ID ${id}.`);
+    }
+  }
 }
 
-export const getAllCategories = async (): Promise<Category[]> => {
-  const result = await pool.query('SELECT * FROM categories ORDER BY name ASC');
-  return result.rows;
-};
-
-export const getCategoryById = async (id: number): Promise<Category | null> => {
-  const result = await pool.query('SELECT * FROM categories WHERE id = $1', [id]);
-  return result.rows[0] || null;
-};
-
-export const getCategoryByName = async (name: string): Promise<Category | null> => {
-  const result = await pool.query('SELECT * FROM categories WHERE name ILIKE $1', [name]);
-  return result.rows[0] || null;
-};
-
-export const createCategory = async (category: Category): Promise<Category> => {
-  const { name, description } = category;
-  const result = await pool.query(
-    'INSERT INTO categories (name, description) VALUES ($1, $2) RETURNING *',
-    [name, description || null] // description can be null
-  );
-  return result.rows[0];
-};
-
-export const updateCategory = async (id: number, category: Partial<Category>): Promise<Category | null> => {
-  const existing = await getCategoryById(id);
-  if (!existing) return null;
-
-  const updated = {
-    name: category.name || existing.name,
-    description: category.description ?? existing.description, // Use ?? to allow setting description to null
-  };
-
-  const result = await pool.query(
-    'UPDATE categories SET name = $1, description = $2 WHERE id = $3 RETURNING *',
-    [updated.name, updated.description, id]
-  );
-
-  return result.rows[0];
-};
-
-export const deleteCategoryById = async (categoryId: number): Promise<{ success: boolean; message: string }> => {
-  try {
-    const result = await pool.query('DELETE FROM categories WHERE id = $1', [categoryId]);
-
-    if ((result.rowCount ?? 0) > 0) {
-      return { success: true, message: '✅ Category deleted successfully' };
-    } else {
-      return { success: false, message: '⚠️ No category found with the given ID' };
-    }
-  } catch (error: any) {
-    if (error.code === '23503') { // PostgreSQL foreign key violation error code
-      return { success: false, message: '❌ Cannot delete category: products are assigned to it.' };
-    }
-    console.error('❌ Error deleting category:', error);
-    return { success: false, message: '❌ Internal server error' };
-  }
-};
+export default new CategoryModel(); // Export an instance of the model

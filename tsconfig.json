@@ -1,23 +1,22 @@
 {
   "compilerOptions": {
     /* Language and Environment */
-    "target": "es2016",
-    "module": "commonjs",
+    "target": "es2016", // Or es2017/es2018 if you prefer
+    "module": "commonjs", // <--- CRUCIAL: Revert to commonjs
 
     /* Modules */
-    "rootDir": "./src", // Uncommented: Specifies the root directory of your source files.
-
-    /* Emit */
-    "outDir": "./dist", // Uncommented: Specifies the output folder for all emitted JavaScript files.
+    "rootDir": "./src",
+    "outDir": "./dist",
 
     /* Interop Constraints */
-    "esModuleInterop": true,
+    "esModuleInterop": true, // Keep this, it's generally helpful
     "forceConsistentCasingInFileNames": true,
 
     /* Type Checking */
     "strict": true,
     "skipLibCheck": true
+    // Remove typeRoots and moduleResolution: "nodenext"
   },
-  "include": ["src/**/*.ts"], // Keep this to explicitly include your TypeScript source files
-  "exclude": ["node_modules"] // Keep this to exclude node_modules from compilation
+  "include": ["src/**/*.ts", "src/migrations/1753539632386_initial-schema.js"],
+  "exclude": ["node_modules"]
 }

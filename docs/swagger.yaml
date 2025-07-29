@@ -9,7 +9,7 @@ info:
 servers:
   - url: http://localhost:5000/api # Local development server
     description: Development Server
-  - url: https://kelvisan-backend.onrender.com/api # Render deployment server
+  - url: https://kelvisan-backend.onrender.com/api # Render deployment server (Update if your actual URL changes)
     description: Production Server
 
 security:
@@ -34,12 +34,12 @@ paths:
                 email:
                   type: string
                   format: email
-                  example: admin@example.com
+                  example: newadmin@example.com
                 password:
                   type: string
                   format: password
                   minLength: 6
-                  example: password123
+                  example: strongpassword123
       responses:
         '201':
           description: Admin registered successfully
@@ -48,13 +48,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          description: Invalid input
+          description: Invalid input (e.g., missing email/password)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': # NEW: Response for admin limit reached
+          description: Admin limit reached or forbidden
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: User with this email already exists
+          description: Admin with this email already exists
           content:
             application/json:
               schema:
@@ -121,6 +127,108 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /auth/forgot-password: # NEW: Forgot Password endpoint
+    post:
+      summary: Request a password reset link
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@example.com
+      responses:
+        '200':
+          description: If an account with that email exists, a password reset link has been sent. (Generic success message for security)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: If an account with that email exists, a password reset link has been sent.
+        '400':
+          description: Email is required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/reset-password: # NEW: Reset Password endpoint
+    post:
+      summary: Reset password using a token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - email
+                - newPassword
+              properties:
+                token:
+                  type: string
+                  description: The password reset token received via email.
+                  example: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d
+                email:
+                  type: string
+                  format: email
+                  description: The email associated with the reset request.
+                  example: admin@example.com
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 6
+                  example: newStrongPassword!23
+      responses:
+        '200':
+          description: Password has been reset successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password has been reset successfully.
+        '400':
+          description: Invalid input (missing fields, invalid/expired token, or token/email mismatch)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Admin not found for this token (data inconsistency)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /auth/me:
     get:
       summary: Get current authenticated admin user's details
@@ -134,17 +242,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                    example: 1
-                  email:
-                    type: string
-                    example: admin@example.com
-                  created_at:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/Admin' # Use the Admin schema directly
         '401':
           description: Unauthorized - missing or invalid token
           content:
@@ -158,7 +256,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /category: # Backend uses /api/category (singular)
+  /categories: # UPDATED: Path to plural /categories
     get:
       summary: Get all product categories
       tags:
@@ -232,7 +330,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /category/{id}: # Backend uses /api/category (singular)
+  /categories/{id}: # UPDATED: Path to plural /categories/{id}
     get:
       summary: Get a single product category by ID
       tags:
@@ -241,9 +339,11 @@ paths:
         - in: path
           name: id
           schema:
-            type: integer
+            type: string # UPDATED: ID is now UUID (string)
+            format: uuid
+            example: 123e4567-e89b-12d3-a456-426614174000
           required: true
-          description: Numeric ID of the category to retrieve
+          description: UUID of the category to retrieve
       responses:
         '200':
           description: Category details
@@ -252,7 +352,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Category'
         '400':
-          description: Invalid ID format
+          description: Invalid ID format (e.g., not a valid UUID)
           content:
             application/json:
               schema:
@@ -279,9 +379,11 @@ paths:
         - in: path
           name: id
           schema:
-            type: integer
+            type: string # UPDATED: ID is now UUID (string)
+            format: uuid
+            example: 123e4567-e89b-12d3-a456-426614174000
           required: true
-          description: Numeric ID of the category to update
+          description: UUID of the category to update
       requestBody:
         required: true
         content:
@@ -343,9 +445,11 @@ paths:
         - in: path
           name: id
           schema:
-            type: integer
+            type: string # UPDATED: ID is now UUID (string)
+            format: uuid
+            example: 123e4567-e89b-12d3-a456-426614174000
           required: true
-          description: Numeric ID of the category to delete
+          description: UUID of the category to delete
       responses:
         '200':
           description: Category deleted successfully
@@ -376,7 +480,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Cannot delete category because products are assigned to it
+          description: Cannot delete category because products are assigned to it (Foreign Key Constraint)
           content:
             application/json:
               schema:
@@ -455,9 +559,11 @@ paths:
         - in: path
           name: id
           schema:
-            type: integer
+            type: string # UPDATED: ID is now UUID (string)
+            format: uuid
+            example: 123e4567-e89b-12d3-a456-426614174000
           required: true
-          description: Numeric ID of the product to retrieve
+          description: UUID of the product to retrieve
       responses:
         '200':
           description: Product details
@@ -493,9 +599,11 @@ paths:
         - in: path
           name: id
           schema:
-            type: integer
+            type: string # UPDATED: ID is now UUID (string)
+            format: uuid
+            example: 123e4567-e89b-12d3-a456-426614174000
           required: true
-          description: Numeric ID of the product to update
+          description: UUID of the product to update
       requestBody:
         required: true
         content:
@@ -543,9 +651,11 @@ paths:
         - in: path
           name: id
           schema:
-            type: integer
+            type: string # UPDATED: ID is now UUID (string)
+            format: uuid
+            example: 123e4567-e89b-12d3-a456-426614174000
           required: true
-          description: Numeric ID of the product to delete
+          description: UUID of the product to delete
       responses:
         '200':
           description: Product deleted successfully
@@ -582,7 +692,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /newsletter:
+  /newsletter/subscribe: # UPDATED: Specific path for subscribe
     post:
       summary: Subscribe to the newsletter
       tags:
@@ -613,6 +723,89 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '409': # NEW: Added 409 for already subscribed email
+          description: Email is already subscribed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /newsletter/unsubscribe: # NEW: Unsubscribe endpoint
+    delete:
+      summary: Unsubscribe from the newsletter
+      tags:
+        - Newsletter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: subscriber@example.com
+      responses:
+        '200':
+          description: Unsubscribed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Unsubscribed successfully.
+        '400':
+          description: Email is required for unsubscription.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Email not found in subscriber list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /newsletter/subscribers: # NEW: Get all subscribers endpoint (admin only)
+    get:
+      summary: Get all newsletter subscribers
+      tags:
+        - Newsletter
+      security:
+        - bearerAuth: [] # Requires authentication
+      responses:
+        '200':
+          description: A list of newsletter subscribers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NewsletterSubscription'
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Internal server error
           content:
@@ -634,9 +827,10 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string # UPDATED: ID is now UUID (string)
+          format: uuid
           readOnly: true
-          example: 1
+          example: 123e4567-e89b-12d3-a456-426614174000
         email:
           type: string
           format: email
@@ -646,6 +840,23 @@ components:
           format: date-time
           readOnly: true
           example: '2023-10-26T10:00:00Z'
+        updated_at: # NEW: Added updated_at
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2023-10-26T10:00:00Z'
+
+    AuthResponse: # NEW: Added AuthResponse schema for login/register success
+      type: object
+      properties:
+        message:
+          type: string
+          example: Login successful
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        admin: # Optional: if you return admin details on login
+          $ref: '#/components/schemas/Admin'
 
     LoginAttempt:
       type: object
@@ -671,9 +882,10 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          type: string # UPDATED: ID is now UUID (string)
+          format: uuid
           readOnly: true
-          example: 1
+          example: 123e4567-e89b-12d3-a456-426614174000
         name:
           type: string
           example: Energy
@@ -686,18 +898,24 @@ components:
           format: date-time
           readOnly: true
           example: '2023-10-26T10:10:00Z'
+        updated_at: # NEW: Added updated_at
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2023-10-26T10:10:00Z'
 
     Product:
       type: object
       properties:
         id:
-          type: integer
+          type: string # UPDATED: ID is now UUID (string)
+          format: uuid
           readOnly: true
-          example: 1
+          example: 123e4567-e89b-12d3-a456-426614174000
         name:
           type: string
           example: Solar Panel 300W
-        image:
+        image_url: # UPDATED: Changed from 'image' to 'image_url'
           type: string
           format: url
           example: https://res.cloudinary.com/your_cloud_name/image/upload/v1234567890/kelvisan_products/solar_panel.jpg
@@ -709,14 +927,20 @@ components:
           format: float
           example: 299.99
         category_id:
-          type: integer
+          type: string # UPDATED: category_id is now UUID (string)
+          format: uuid
           nullable: true
-          example: 1
+          example: 123e4567-e89b-12d3-a456-426614174001
         category_name:
           type: string
           nullable: true
           example: Energy
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2023-10-26T10:15:00Z'
+        updated_at: # NEW: Added updated_at
           type: string
           format: date-time
           readOnly: true
@@ -728,7 +952,7 @@ components:
         - name
         - description
         - price
-        - image
+        - image # This is the file input name
       properties:
         name:
           type: string
@@ -736,19 +960,20 @@ components:
         description:
           type: string
           example: A description of the new energy product.
-        # Price is sent as a string in FormData, but should be a number
+        # Price is sent as a string in FormData from frontend, but should be a number in schema
         price:
           type: number
           format: float
           example: 150.00
         category_id:
-          type: integer
+          type: string # UPDATED: category_id is now UUID (string)
+          format: uuid
           nullable: true
-          example: 1
+          example: 123e4567-e89b-12d3-a456-426614174001
         # Indicates a file upload
         image:
           type: string
-          format: binary
+          format: binary # Represents a file upload
 
     ProductUpdateRequest: # Schema for multipart/form-data PUT /products/{id}
       type: object
@@ -759,19 +984,20 @@ components:
         description:
           type: string
           example: An updated description.
-        # Price is sent as a string in FormData, but should be a number
+        # Price is sent as a string in FormData from frontend, but should be a number in schema
         price:
           type: number
           format: float
           example: 175.50
         category_id:
-          type: integer
+          type: string # UPDATED: category_id is now UUID (string)
+          format: uuid
           nullable: true
-          example: 2
+          example: 123e4567-e89b-12d3-a456-426614174002
         # For new image upload
         image:
           type: string
-          format: binary
+          format: binary # Represents a new file upload
         image_url: # For retaining existing image if no new file is uploaded
           type: string
           format: url
@@ -788,7 +1014,7 @@ components:
           type: string
           format: email
           example: subscriber@example.com
-        created_at:
+        subscribed_at: # UPDATED: Use subscribed_at as per migration
           type: string
           format: date-time
           readOnly: true

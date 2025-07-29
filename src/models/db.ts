@@ -1,80 +1,51 @@
-// src/utils/db.ts
-import pg from 'pg';
-import { config } from '../utils/config'; // adjust path if needed
+import dotenv from 'dotenv';
+import knex from 'knex'; // Import Knex.js
+import path from 'path';
 
-const { Pool } = pg;
+// Load environment variables from the root .env file.
+// This ensures process.env variables are available when this file is imported.
+dotenv.config({ path: path.resolve(__dirname, '../../.env') }); // Adjust path if your .env is elsewhere
 
-// Define LoginAttempt interface directly if not used elsewhere
-export interface LoginAttempt {
-  id?: number;
-  email: string;
-  success: boolean;
-  attempted_at?: Date;
-}
+// Determine the current environment (e.g., 'development', 'production')
+const environment = process.env.NODE_ENV || 'development';
 
-// Build connection string using env vars
-const connectionString = `postgresql://${config.DB_USERNAME}:${(config.DB_PASSWORD)}@${config.DB_HOST}:${config.DB_PORT}/${config.DB_NAME}`;
+// Define Knex configuration directly here for simplicity.
+// This is the connection configuration for the Knex instance used for queries, NOT for migrations.
+const knexConfig = {
+  client: 'pg', // PostgreSQL client
+  connection: {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
+    database: process.env.DB_NAME || 'kelvisan_dev',
+  },
+  pool: { // Connection pool settings
+    min: 2,
+    max: 10,
+  },
+  // No migrations or seeds directory here; node-pg-migrate handles that separately
+};
 
-const pool = new Pool({
-  connectionString,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
+// Initialize the Knex instance with the chosen configuration
+const db = knex(knexConfig); // Use the inline knexConfig
 
+/**
+ * Initializes the database connection.
+ * This function tests the connection to the database.
+ * Migrations are handled by node-pg-migrate CLI separately.
+ */
 export const initializeDatabase = async () => {
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS admins (
-        id SERIAL PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS login_attempts (
-        id SERIAL PRIMARY KEY,
-        email TEXT NOT NULL,
-        success BOOLEAN NOT NULL,
-        attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // NEW TABLE: Categories
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS categories (
-        id SERIAL PRIMARY KEY,
-        name TEXT UNIQUE NOT NULL,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // MODIFIED TABLE: Products (added category_id and foreign key constraint)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS products (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        image TEXT NOT NULL,
-        description TEXT NOT NULL,
-        price NUMERIC(10, 2) NOT NULL,
-        category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL, -- New column with foreign key
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS newsletter (
-        id SERIAL PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    console.log('✅ All tables created or already exist');
+    // Test the database connection by executing a simple query
+    await db.raw('SELECT 1');
+    console.log(`✅ Database connected successfully to ${environment} environment.`);
   } catch (error) {
-    console.error('❌ Error initializing database:', error);
+    console.error(`❌ Error connecting to database (${environment}):`, error);
+    // It's critical to exit if database connection fails on startup
+    process.exit(1);
   }
 };
 
-export default pool;
+// Export the initialized Knex instance for use throughout your application
+export default db;

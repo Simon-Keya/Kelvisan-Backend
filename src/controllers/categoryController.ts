@@ -1,19 +1,11 @@
-// src/controllers/categoryController.ts
 import { Request, Response } from 'express';
-import {
-  Category,
-  createCategory,
-  deleteCategoryById, // Directly imported from its model now
-  getAllCategories,
-  getCategoryById,
-  getCategoryByName,
-  updateCategory,
-} from '../models/categoryModel';
+import CategoryModel from '../models/categoryModel'; // Import the default exported instance of CategoryModel
+import { Category } from '../types/category'; // Import the Category interface from its type definition file
 
 // GET /api/categories
 export const getCategories = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const categories = await getAllCategories();
+    const categories = await CategoryModel.getAllCategories(); // Call method on the imported instance
     res.status(200).json(categories);
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -24,13 +16,10 @@ export const getCategories = async (_req: Request, res: Response): Promise<void>
 // GET /api/categories/:id
 export const getSingleCategory = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid category ID' });
-      return;
-    }
+    const { id } = req.params; // ID is now a string (UUID)
+    // No parseInt needed for UUIDs
 
-    const category = await getCategoryById(id);
+    const category = await CategoryModel.getCategoryById(id); // Call method on the imported instance
     if (!category) {
       res.status(404).json({ message: 'Category not found' });
       return;
@@ -52,14 +41,14 @@ export const addCategory = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const existingCategory = await getCategoryByName(name);
+    const existingCategory = await CategoryModel.getCategoryByName(name); // Call method on the imported instance
     if (existingCategory) {
       res.status(409).json({ message: 'Category with this name already exists' });
       return;
     }
 
-    const category: Category = { name, description };
-    const newCategory = await createCategory(category);
+    const categoryData: Omit<Category, 'id' | 'created_at' | 'updated_at'> = { name, description };
+    const newCategory = await CategoryModel.createCategory(categoryData); // Call method on the imported instance
     res.status(201).json(newCategory);
   } catch (error) {
     console.error('Error creating category:', error);
@@ -70,11 +59,8 @@ export const addCategory = async (req: Request, res: Response): Promise<void> =>
 // PUT /api/categories/:id
 export const editCategory = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid category ID' });
-      return;
-    }
+    const { id } = req.params; // ID is now a string (UUID)
+    // No parseInt needed for UUIDs
 
     const { name, description } = req.body;
     if (!name && description === undefined) {
@@ -83,14 +69,15 @@ export const editCategory = async (req: Request, res: Response): Promise<void> =
     }
 
     if (name) {
-      const existingCategory = await getCategoryByName(name);
+      const existingCategory = await CategoryModel.getCategoryByName(name); // Call method on the imported instance
+      // Ensure that if a category with the same name exists, it's not the *current* category being edited.
       if (existingCategory && existingCategory.id !== id) {
         res.status(409).json({ message: 'Category with this name already exists' });
         return;
       }
     }
 
-    const updatedCategory = await updateCategory(id, { name, description });
+    const updatedCategory = await CategoryModel.updateCategory(id, { name, description }); // Call method on the imported instance
     if (!updatedCategory) {
       res.status(404).json({ message: 'Category not found' });
       return;
@@ -107,20 +94,22 @@ export const editCategory = async (req: Request, res: Response): Promise<void> =
 // DELETE /api/categories/:id
 export const removeCategory = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid category ID' });
-      return;
-    }
+    const { id } = req.params; // ID is now a string (UUID)
+    // No parseInt needed for UUIDs
 
-    const result = await deleteCategoryById(id);
-    if (!result.success) {
-      res.status(result.message.includes('No category found') ? 404 : 409).json({ message: result.message });
+    const deletedRows = await CategoryModel.deleteCategory(id); // Call method on the imported instance
+    if (deletedRows === 0) {
+      res.status(404).json({ message: 'No category found with the given ID' });
       return;
     }
 
     res.status(200).json({ message: 'Category deleted successfully' });
-  } catch (error) {
+  } catch (error: any) { // Add any to error type for checking error.code
+    // Check for PostgreSQL foreign key violation error code (23503)
+    if (error.code === '23503') {
+      res.status(409).json({ message: 'Cannot delete category because it is associated with existing products.' });
+      return;
+    }
     console.error('Error deleting category:', error);
     res.status(500).json({ message: 'Failed to delete category' });
   }
