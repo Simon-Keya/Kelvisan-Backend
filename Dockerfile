@@ -4,10 +4,11 @@ FROM node:18-alpine AS builder
 # 2. Set working directory
 WORKDIR /usr/src/app
 
-# 3. Copy package files, tsconfig.json, and source code
+# 3. Copy package files, tsconfig.json, source code, and docs
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY src ./src
+COPY docs ./docs
 
 # 4. Install dependencies
 RUN npm install
