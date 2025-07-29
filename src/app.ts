@@ -42,9 +42,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Health check / Root endpoint
 app.get('/', (_req: Request, res: Response) => {
   res.send('Kelvisan API is running...');
-});
+})
 
-// Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err.stack);
   res.status(500).json({
