@@ -1,22 +1,19 @@
 {
   "compilerOptions": {
-    /* Language and Environment */
-    "target": "es2016", // Or es2017/es2018 if you prefer
-    "module": "commonjs", // <--- CRUCIAL: Revert to commonjs
-
-    /* Modules */
+    "target": "es2016",
+    "module": "commonjs",
     "rootDir": "./src",
     "outDir": "./dist",
-
-    /* Interop Constraints */
-    "esModuleInterop": true, // Keep this, it's generally helpful
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-
-    /* Type Checking */
     "strict": true,
-    "skipLibCheck": true
-    // Remove typeRoots and moduleResolution: "nodenext"
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false, // Enable if you want type-checking for .js files
+    "lib": ["es2016", "dom"], // Add if DOM APIs are needed
+    "sourceMap": true, // For debugging
+    "moduleResolution": "node"
   },
-  "include": ["src/**/*.ts", "src/migrations/1753539632386_initial-schema.js"],
+  "include": ["src/**/*.ts", "src/database/migrations/**/*.js"],
   "exclude": ["node_modules"]
 }
