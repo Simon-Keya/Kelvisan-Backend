@@ -10,7 +10,7 @@ COPY tsconfig.json ./
 COPY src ./src
 COPY docs ./docs
 
-# 4. Install dependencies
+# 4. Install all dependencies (including devDependencies for build)
 RUN npm install
 
 # 5. Run TypeScript build
@@ -25,15 +25,17 @@ WORKDIR /usr/src/app
 # 8. Set production environment
 ENV NODE_ENV=production
 
-# 9. Copy necessary files
-COPY --from=builder /usr/src/app/dist ./dist
-COPY --from=builder /usr/src/app/node_modules ./node_modules
+# 9. Copy package files and install production dependencies
 COPY --from=builder /usr/src/app/package*.json ./
+RUN npm install --production
+
+# 10. Copy built files, docs, and migrations
+COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/docs ./docs
 COPY --from=builder /usr/src/app/src/database/migrations ./src/database/migrations
 
-# 10. Expose port
+# 11. Expose port
 EXPOSE 5000
 
-# 11. Start command
+# 12. Start command
 CMD ["npm", "run", "start:migrate"]
