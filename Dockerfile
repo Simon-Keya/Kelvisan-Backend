@@ -29,10 +29,11 @@ ENV NODE_ENV=production
 COPY --from=builder /usr/src/app/package*.json ./
 RUN npm ci --production --ignore-scripts
 
-# 10. Copy built files, docs, and migrations
+# 10. Copy built files, docs, migrations, and migrate-config
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/docs ./docs
 COPY --from=builder /usr/src/app/src/database/migrations ./src/database/migrations
+COPY --from=builder /usr/src/app/src/database/migrate-config.js ./src/database/migrate-config.js
 
 # 11. Expose port
 EXPOSE 5000
