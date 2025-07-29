@@ -21,11 +21,11 @@ const knexConfig = {
     }
   } : {
     // For development, use individual variables from your local .env
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    user: process.env.DB_USERNAME || 'postgres', // Use DB_USERNAME as per your .env
-    password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_NAME || 'kelvisan_dev',
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT|| '5432', 10),
+    user: process.env.DB_USERNAME, 
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
   },
   pool: { // Connection pool settings
     min: 2,
