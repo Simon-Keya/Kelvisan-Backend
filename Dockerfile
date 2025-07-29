@@ -4,14 +4,15 @@ FROM node:18-alpine AS builder
 # 2. Set working directory
 WORKDIR /usr/src/app
 
-# 3. Copy package files
+# 3. Copy package files and tsconfig.json
 COPY package*.json ./
+COPY tsconfig.json ./
 
 # 4. Install dependencies
 RUN npm install
 
 # 5. Copy application code
-COPY . .
+COPY src ./src
 
 # 6. Run TypeScript build
 RUN npm exec tsc --pretty --force --diagnostics
