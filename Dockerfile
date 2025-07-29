@@ -27,7 +27,7 @@ ENV NODE_ENV=production
 
 # 9. Copy package files and install production dependencies
 COPY --from=builder /usr/src/app/package*.json ./
-RUN npm install --production
+RUN npm ci --production --ignore-scripts
 
 # 10. Copy built files, docs, and migrations
 COPY --from=builder /usr/src/app/dist ./dist
