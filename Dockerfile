@@ -26,9 +26,9 @@ WORKDIR /usr/src/app
 # 8. Set production environment
 ENV NODE_ENV=production
 
-# 9. Copy package files and install production dependencies
+# 9. Copy package files and node_modules from builder
 COPY --from=builder /usr/src/app/package*.json ./
-RUN npm ci --production --ignore-scripts
+COPY --from=builder /usr/src/app/node_modules ./node_modules
 
 # 10. Copy built files, docs, and migrations
 COPY --from=builder /usr/src/app/dist ./dist
