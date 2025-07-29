@@ -15,7 +15,7 @@ const knexConfig = {
   connection: environment === 'production' ? {
     // For production, use the full DATABASE_URL provided by Render
     // This is the most reliable way to connect on Render
-    connectionString: process.env.PROD_DATABASE_URL,
+    connectionString: process.env.DATABASE_URL,
     ssl: {
       rejectUnauthorized: false // Required for Render's PostgreSQL connections
     }
