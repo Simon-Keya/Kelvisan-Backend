@@ -4,19 +4,26 @@ import path from 'path';
 
 // Load environment variables from the root .env file.
 // This ensures process.env variables are available when this file is imported.
-dotenv.config({ path: path.resolve(__dirname, '../../.env') }); // Adjust path if your .env is elsewhere
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Determine the current environment (e.g., 'development', 'production')
 const environment = process.env.NODE_ENV || 'development';
 
-// Define Knex configuration directly here for simplicity.
-// This is the connection configuration for the Knex instance used for queries, NOT for migrations.
+// Define Knex configuration.
 const knexConfig = {
   client: 'pg', // PostgreSQL client
-  connection: {
+  connection: environment === 'production' ? {
+    // For production, use the full DATABASE_URL provided by Render
+    // This is the most reliable way to connect on Render
+    connectionString: process.env.PROD_DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false // Required for Render's PostgreSQL connections
+    }
+  } : {
+    // For development, use individual variables from your local .env
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432', 10),
-    user: process.env.DB_USER || 'postgres',
+    user: process.env.DB_USERNAME || 'postgres', // Use DB_USERNAME as per your .env
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_NAME || 'kelvisan_dev',
   },
@@ -24,11 +31,10 @@ const knexConfig = {
     min: 2,
     max: 10,
   },
-  // No migrations or seeds directory here; node-pg-migrate handles that separately
 };
 
 // Initialize the Knex instance with the chosen configuration
-const db = knex(knexConfig); // Use the inline knexConfig
+const db = knex(knexConfig);
 
 /**
  * Initializes the database connection.
