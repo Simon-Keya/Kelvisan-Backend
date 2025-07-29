@@ -4,11 +4,12 @@ FROM node:18-alpine AS builder
 # 2. Set working directory
 WORKDIR /usr/src/app
 
-# 3. Copy package files, tsconfig.json, source code, and docs
+# 3. Copy package files, tsconfig.json, source code, docs, and migrations
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY src ./src
 COPY docs ./docs
+COPY migrations ./migrations
 
 # 4. Install all dependencies (including devDependencies for build)
 RUN npm install
@@ -29,11 +30,10 @@ ENV NODE_ENV=production
 COPY --from=builder /usr/src/app/package*.json ./
 RUN npm ci --production --ignore-scripts
 
-# 10. Copy built files, docs, migrations, and migrate-config
+# 10. Copy built files, docs, and migrations
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/docs ./docs
-COPY --from=builder /usr/src/app/src/database/migrations ./src/database/migrations
-COPY --from=builder /usr/src/app/src/database/migrate-config.js ./src/database/migrate-config.js
+COPY --from=builder /usr/src/app/migrations ./migrations
 
 # 11. Expose port
 EXPOSE 5000
