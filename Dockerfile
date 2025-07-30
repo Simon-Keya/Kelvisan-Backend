@@ -36,7 +36,7 @@ COPY --from=builder /usr/src/app/docs ./docs
 COPY --from=builder /usr/src/app/migrations ./migrations
 
 # 11. Expose port
-EXPOSE 5000
+EXPOSE 10000
 
 # 12. Start command
 CMD ["npm", "run", "start:migrate"]

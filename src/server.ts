@@ -15,12 +15,21 @@ const startServer = async () => {
     console.log('✅ Database connected successfully');
 
     // Start the Express server
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
       if (process.env.NODE_ENV !== 'production') {
         console.log(`🔗 Local API: http://localhost:${PORT}`);
         console.log(`📚 Swagger docs: http://localhost:${PORT}/api-docs`);
       }
+    });
+
+    // Handle SIGTERM gracefully
+    process.on('SIGTERM', () => {
+      console.log('Received SIGTERM. Performing graceful shutdown...');
+      server.close(() => {
+        console.log('Server closed.');
+        process.exit(0);
+      });
     });
   } catch (error) {
     console.error('❌ Failed to start server:', {
@@ -36,5 +45,4 @@ const startServer = async () => {
   }
 };
 
-// Initiate the server startup process
 startServer();
